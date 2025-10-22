@@ -1,99 +1,251 @@
-﻿# Friends_Distributed_Simulation
 
-A distributed backend system where sitcom characters like Ross and Rachel never stop talking — powered by LLMs and RabbitMQ.
+# 🎭 Friends_Distributed_Simulation
 
-No frontend. Just relentless sarcasm, asynchronous messaging, and AI-fueled banter.
+> *A distributed backend system where sitcom characters like Ross and Rachel never stop talking — powered by LLMs and RabbitMQ.*
+
+No frontend. Just relentless sarcasm, asynchronous messaging, and AI-fueled banter.  
+Because who needs REST when you can have **Ross screaming into a message queue**?
+
+---
 
 ## 🧠 What It Is
 
-SitcomGPT simulates real-time conversations between fictional characters using:
+**Friends_Distributed_Simulation** (a.k.a. *SitcomGPT*) is a distributed backend that simulates real-time conversations between fictional characters from *Friends*, powered by:
 
-- 🤖 **Google Gemini**: for generating witty, character-styled one-liners  
-- 📨 **RabbitMQ**: for message-passing between autonomous character services  
-- 🛠️ **Node.js + Express**: for setting up character agents and initiating dialogues
+- 🤖 **Google Gemini** for character-style dialogue  
+- 📬 **RabbitMQ** for asynchronous message passing  
+- ⚙️ **Node.js + Express** for lightweight, autonomous character services  
 
-Each character is its own service, listening and responding via queues, creating the illusion of an endless, distributed sitcom.
+Each character runs as its **own service**, connected through a shared RabbitMQ queue.  
+Together, they chat endlessly — creating a self-sustaining sitcom in code form.
+
+---
+
+## 🧩 Architecture Overview
+
+```mermaid
+
+graph TD
+
+    subgraph User
+
+        Trigger[/"curl http://localhost:3000/make-ross-talk"/]
+
+    end
+
+
+    subgraph CharacterServices [Character Microservices]
+
+        Ross(🤖 Ross Service <br> :3000)
+
+        Rachel(🤖 Rachel Service <br> :3001)
+
+        Joey(🤖 Joey Service <br> :3002)
+
+    end
+
+
+    subgraph Messaging
+
+        MQ([📬 RabbitMQ <br> Message-Q])
+
+    end
+
+
+    subgraph AI
+
+        Gemini(🧠 Google Gemini API)
+
+    end
+
+
+    %% --- Flow ---
+
+    Trigger -- 1. HTTP GET --> Ross
+
+    
+
+    Ross -- 2. Calls for dialogue --> Gemini
+
+    Gemini -- 3. Returns dialogue --> Ross
+
+    Ross -- 4. Publishes message --> MQ
+
+    
+
+    MQ -- 5. Consumes message --> Rachel
+
+    Rachel -- 6. Calls for dialogue --> Gemini
+
+    Gemini -- 7. Returns dialogue --> Rachel
+
+    Rachel -- 8. Publishes message --> MQ
+
+    
+
+    MQ -- 9. Consumes message --> Joey
+
+    Joey -- 10. Calls for dialogue --> Gemini
+
+    Gemini -- 11. Returns dialogue --> Joey
+
+    Joey -- 12. Publishes message --> MQ
+
+
+    MQ -- 13. Consumes message (Loop) --> Ross
+
+```
+
+| Component | Purpose |
+|------------|----------|
+| 🧠 Google Gemini API | Generates witty, character-style one-liners |
+| 📬 RabbitMQ | Routes messages between character microservices |
+| ⚙️ Node.js + Express | Powers each autonomous sitcom agent |
+| 🔁 Queue Loop | Keeps conversations running asynchronously |
+
+Each “character” acts like an independent actor on a stage — listening for cues and responding when it’s their turn.
 
 ---
 
 ## 🛠️ Setup
 
-### 1. Clone this repo
-
+### 1️⃣ Clone the Repository
 ```bash
 git clone https://github.com/yourusername/sitcom-gpt.git
 cd sitcom-gpt
-```
+````
 
-### 2. Install dependencies
-```
+### 2️⃣ Install Dependencies
+
+```bash
 npm install
 ```
 
-### 3. Create a .env file
+### 3️⃣ Create a `.env` File
 
-Add your Google Gemini API key like so:
+Add your Google Gemini API key:
 
+```
 GEMINI_API_KEY=your-api-key-here
+```
 
-### 4. Run RabbitMQ
+### 4️⃣ Run RabbitMQ Locally
 
-Make sure RabbitMQ is running locally at amqp://localhost. You can spin it up with Docker:
+If you have RabbitMQ installed:
 
-docker run -d --hostname my-rabbit --name some-rabbit -p 5672:5672 rabbitmq:3
+```bash
+rabbitmq-server
+```
+
+It should be available at the default URL:
+`amqp://localhost`
 
 ---
 
 ## 🚀 Start the Characters
 
-Each character (e.g., Ross, Rachel) runs on its own port and listens to the shared message queue.
+Each character (e.g., **Ross**, **Rachel**, **Joey**) runs on its own port and listens to the same shared message queue.
 
-### Terminal 1 - Ross service
-```
-node index.js
-```
+```bash
+# Terminal 1 - Ross service
+node ross.js
 
-### Terminal 2 - Rachel service
-```
-node index.js
-```
+# Terminal 2 - Rachel service
+node rachel.js
 
-### Terminal 3 - Joe service
-```
-node index.js
+# Terminal 3 - Joey service
+node joey.js
 ```
 
-Start the conversation by triggering Ross:
+Once all are running, start the conversation by triggering Ross:
 
-```
+```bash
 curl http://localhost:3000/make-ross-talk
 ```
 
-## 🧪 What Happens
+---
 
-You’ll witness something like this:
+## 💬 Example Interaction
 
 ```
 📩 Ross ➡️ Rachel: "You were *so* on a break."
 💬 Rachel ➡️ Ross: "And you're still on pause, emotionally."
 📩 Ross ➡️ Rachel: "I'm not emotionally unavailable, I'm just... historically cautious."
+💬 Joey ➡️ Everyone: "Wait, what break? Are we getting snacks?"
 ```
 
-The conversation can loop indefinitely — or descend into pure AI-powered chaos. Up to you.
+The conversation loops asynchronously through RabbitMQ until the `turn` limit is reached — or until emotional stability is lost.
+
+---
+
 ## 🧱 Tech Stack
 
-- Node.js + Express
-- RabbitMQ
-- Google Gemini API (LLM)
+| Layer             | Technology          |
+| ----------------- | ------------------- |
+| Backend Framework | Node.js + Express   |
+| Messaging System  | RabbitMQ            |
+| AI Engine         | Google Gemini (LLM) |
 
-## 🏁 Future Ideas
+---
 
-- Add more characters (Joey? Chandler?)
-- Visual frontend for chat timeline
-- Add memory or context history per agent
-- Conversation limiter or sentiment analytics
+## ⚙️ How It Works
+
+1. Each character is a small **Express app** running on a different port.
+2. They all connect to the same **RabbitMQ queue** (`Message-Q`).
+3. When one character speaks, the message is sent to the queue.
+4. Another character consumes the message, generates a Gemini-powered reply, and sends it back.
+5. This continues asynchronously, forming a distributed conversation loop.
+
+💡 Each agent uses prompt engineering to stay in character —
+Joey stays clueless, Ross stays defensive, Rachel stays dramatic.
+
+---
+
+## 🧠 Example Joey Prompt
+
+```js
+const prompt = `You're Joey from Friends. ${from} just told you: "${message}".
+Reply with a short, funny, or clueless one-liner.
+No narration, no names — just dialogue.`;
+```
+
+Output:
+
+```
+📩 Rachel ➡️ Joey: "Do you ever read the news?"
+💬 Joey ➡️ Rachel: "Only if it’s about pizza or me."
+```
+
+---
+
+## 🧭 Future Ideas
+
+* [ ] Add more characters (Chandler, Monica, Phoebe)
+* [ ] Add memory or context history per character
+* [ ] Visualize message flow between agents
+* [ ] Introduce sentiment analysis or “mood swings”
+* [ ] Auto-scale characters when drama peaks
+
+---
+
+## ☕ Why This Exists
+
+Because:
+
+* I love distributed systems
+* I love AI models
+* And I *really* love the idea of **Ross and Rachel arguing forever**
+
+It’s part social experiment, part backend simulation, part emotional chaos.
+
+---
 
 ## 📬 Contact
 
-Feel free to open an issue or ping me if you want to collab on multi-agent AI chaos simulations.
+**Author:** [Rayaan Pasha](https://github.com/mdrayaanpasha)
+*Full-stack developer • AI tinkerer • Distributed chaos enjoyer.*
+
+---
+
+> “Could this system **BE** any more asynchronous?”
 
