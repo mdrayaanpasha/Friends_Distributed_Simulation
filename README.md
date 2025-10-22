@@ -6,6 +6,8 @@
 No frontend. Just relentless sarcasm, asynchronous messaging, and AI-fueled banter.  
 Because who needs REST when you can have **Ross screaming into a message queue**?
 
+
+
 ---
 
 ## 🧠 What It Is
@@ -15,6 +17,8 @@ Because who needs REST when you can have **Ross screaming into a message queue**
 - 🤖 **Google Gemini** for character-style dialogue  
 - 📬 **RabbitMQ** for asynchronous message passing  
 - ⚙️ **Node.js + Express** for lightweight, autonomous character services  
+
+<img width="800" height="283" alt="image" src="https://github.com/user-attachments/assets/4b09d2f7-0f9d-487e-84dd-63b4bb988312" />
 
 Each character runs as its **own service**, connected through a shared RabbitMQ queue.  
 Together, they chat endlessly — creating a self-sustaining sitcom in code form.
@@ -248,4 +252,5 @@ It’s part social experiment, part backend simulation, part emotional chaos.
 ---
 
 > “Could this system **BE** any more asynchronous?”
+
 
