@@ -1,256 +1,134 @@
 
 # 🎭 Friends_Distributed_Simulation
 
-> *A distributed backend system where sitcom characters like Ross and Rachel never stop talking — powered by LLMs and RabbitMQ.*
+> *A stateful, distributed backend where sitcom characters argue via RabbitMQ — now with a database for long-term grudges.*
 
-No frontend. Just relentless sarcasm, asynchronous messaging, and AI-fueled banter.  
-Because who needs REST when you can have **Ross screaming into a message queue**?
-
-
+No frontend. Just persistent sarcasm, asynchronous routing, and AI-fueled banter.  
+**Ross doesn't just scream into a queue; he now remembers what you said 5 minutes ago.**
 
 ---
 
-## 🧠 What It Is
+## 🧠 Evolution: What's New?
 
-**Friends_Distributed_Simulation** (a.k.a. *SitcomGPT*) is a distributed backend that simulates real-time conversations between fictional characters from *Friends*, powered by:
+This version moves beyond simple loops into a **stateful microservice mesh**. Characters no longer "forget" the conversation history; they use a database to maintain context and can even "side-talk" to other characters behind your back.
 
-- 🤖 **Google Gemini** for character-style dialogue  
-- 📬 **RabbitMQ** for asynchronous message passing  
-- ⚙️ **Node.js + Express** for lightweight, autonomous character services  
-
-<img width="800" height="283" alt="image" src="https://github.com/user-attachments/assets/4b09d2f7-0f9d-487e-84dd-63b4bb988312" />
-
-Each character runs as its **own service**, connected through a shared RabbitMQ queue.  
-Together, they chat endlessly — creating a self-sustaining sitcom in code form.
+* 🗄️ **Prisma & DB**: Stores conversation logs for short-term memory.
+* 🔀 **RabbitMQ Direct Exchange**: Specific routing keys allow targeted 1-on-1 messaging.
+* 🧠 **Contextual AI**: Characters inject the last 5 messages into their prompt for better continuity.
+* 🎲 **Gossip Logic**: A 10% chance for a character to start a side-thread with another roommate.
 
 ---
 
-## 🧩 Architecture Overview
+## 🧩 Architecture
+
+
 
 ```mermaid
-
 graph TD
-
     subgraph User
-
-        Trigger[/"curl http://localhost:3000/make-ross-talk"/]
-
+        Trigger[/"GET /start-convo-bro"/]
     end
 
-
-    subgraph CharacterServices [Character Microservices]
-
-        Ross(🤖 Ross Service <br> :3000)
-
-        Rachel(🤖 Rachel Service <br> :3001)
-
-        Joey(🤖 Joey Service <br> :3002)
-
+    subgraph "Character Service (e.g., Ross)"
+        App[Express App]
+        DB[(Prisma / DB)]
+        Logic{AI Logic}
     end
-
 
     subgraph Messaging
-
-        MQ([📬 RabbitMQ <br> Message-Q])
-
+        Exchange[[📬 friends-exchange <br> Direct]]
+        Q_Ross([Queue: q-Ross])
+        Q_Rachel([Queue: q-Rachel])
     end
 
-
-    subgraph AI
-
-        Gemini(🧠 Google Gemini API)
-
-    end
-
-
-    %% --- Flow ---
-
-    Trigger -- 1. HTTP GET --> Ross
-
-    
-
-    Ross -- 2. Calls for dialogue --> Gemini
-
-    Gemini -- 3. Returns dialogue --> Ross
-
-    Ross -- 4. Publishes message --> MQ
-
-    
-
-    MQ -- 5. Consumes message --> Rachel
-
-    Rachel -- 6. Calls for dialogue --> Gemini
-
-    Gemini -- 7. Returns dialogue --> Rachel
-
-    Rachel -- 8. Publishes message --> MQ
-
-    
-
-    MQ -- 9. Consumes message --> Joey
-
-    Joey -- 10. Calls for dialogue --> Gemini
-
-    Gemini -- 11. Returns dialogue --> Joey
-
-    Joey -- 12. Publishes message --> MQ
-
-
-    MQ -- 13. Consumes message (Loop) --> Ross
+    Trigger --> App
+    App -- "1. Logs to DB" --> DB
+    App -- "2. Routes to Rachel/Joey" --> Exchange
+    Exchange -- "Routing Key" --> Q_Rachel
+    Q_Rachel -- "3. Consumes" --> RachelService
 
 ```
-
-| Component | Purpose |
-|------------|----------|
-| 🧠 Google Gemini API | Generates witty, character-style one-liners |
-| 📬 RabbitMQ | Routes messages between character microservices |
-| ⚙️ Node.js + Express | Powers each autonomous sitcom agent |
-| 🔁 Queue Loop | Keeps conversations running asynchronously |
-
-Each “character” acts like an independent actor on a stage — listening for cues and responding when it’s their turn.
 
 ---
 
 ## 🛠️ Setup
 
-### 1️⃣ Clone the Repository
-```bash
-git clone https://github.com/yourusername/sitcom-gpt.git
-cd sitcom-gpt
-````
+### 1️⃣ Database Migration
 
-### 2️⃣ Install Dependencies
+This project uses **Prisma**. Ensure your schema includes a `Logs` model, then run:
 
 ```bash
-npm install
-```
-
-### 3️⃣ Create a `.env` File
-
-Add your Google Gemini API key:
+npx prisma db push
 
 ```
-GEMINI_API_KEY=your-api-key-here
+
+### 2️⃣ Environment Variables
+
+Update your `.env` to include your Database URL and RabbitMQ endpoint:
+
+```env
+GEMINI_API_KEY=your_key
+RABITMQ_URL=amqp://localhost
+DATABASE_URL="postgresql://..."
+
 ```
 
-### 4️⃣ Run RabbitMQ Locally
+### 3️⃣ Run the Cluster
 
-If you have RabbitMQ installed:
+The services are designed to run concurrently using the `dev` script:
 
 ```bash
-rabbitmq-server
-```
-
-It should be available at the default URL:
-`amqp://localhost`
-
----
-
-## 🚀 Start the Characters
-
-Each character (e.g., **Ross**, **Rachel**, **Joey**) runs on its own port and listens to the same shared message queue.
-
-```bash
-# Terminal 1 - Ross service
-node ross.js
-
-# Terminal 2 - Rachel service
-node rachel.js
-
-# Terminal 3 - Joey service
-node joey.js
-```
-
-Once all are running, start the conversation by triggering Ross:
-
-```bash
-curl http://localhost:3000/make-ross-talk
-```
-
----
-
-## 💬 Example Interaction
+npm run dev
 
 ```
-📩 Ross ➡️ Rachel: "You were *so* on a break."
-💬 Rachel ➡️ Ross: "And you're still on pause, emotionally."
-📩 Ross ➡️ Rachel: "I'm not emotionally unavailable, I'm just... historically cautious."
-💬 Joey ➡️ Everyone: "Wait, what break? Are we getting snacks?"
-```
-
-The conversation loops asynchronously through RabbitMQ until the `turn` limit is reached — or until emotional stability is lost.
-
----
-
-## 🧱 Tech Stack
-
-| Layer             | Technology          |
-| ----------------- | ------------------- |
-| Backend Framework | Node.js + Express   |
-| Messaging System  | RabbitMQ            |
-| AI Engine         | Google Gemini (LLM) |
 
 ---
 
 ## ⚙️ How It Works
 
-1. Each character is a small **Express app** running on a different port.
-2. They all connect to the same **RabbitMQ queue** (`Message-Q`).
-3. When one character speaks, the message is sent to the queue.
-4. Another character consumes the message, generates a Gemini-powered reply, and sends it back.
-5. This continues asynchronously, forming a distributed conversation loop.
+1. **Direct Routing**: Each character (Ross, Rachel, Joey) listens on a private queue (`q-CharacterName`) bound to the `friends-exchange`.
+2. **Stateful Memory**: When a message arrives, the character:
+* Saves the message to the DB via Prisma.
+* Retrieves the **last 5 messages** of that specific `conversationId` to build context.
+* Feeds that history into **Google Gemini** to generate a relevant, snarky reply.
 
-💡 Each agent uses prompt engineering to stay in character —
-Joey stays clueless, Ross stays defensive, Rachel stays dramatic.
+
+3. **The "Gossip" Factor**: There is a 10% chance a character will randomly message someone else in the group to "talk about" the current conversation, creating branching dialogues.
+4. **Circuit Breaker**: To save your API credits, conversations have a **hard stop** after 10 exchanges.
 
 ---
 
-## 🧠 Example Joey Prompt
+## 💬 Example Interaction
 
-```js
-const prompt = `You're Joey from Friends. ${from} just told you: "${message}".
-Reply with a short, funny, or clueless one-liner.
-No narration, no names — just dialogue.`;
-```
+**System:** Ross starts a conversation with Rachel.
+**Ross (via AI):** "Hey! How you doin'?"
+**Rachel (via DB Memory):** "Ross, you've been sitting there for an hour. Use your own catchphrase."
+**Ross (Side-talking to Joey):** "I was just talking to Rachel. Thought I'd say hi. She's being... herself."
 
-Output:
+---
 
-```
-📩 Rachel ➡️ Joey: "Do you ever read the news?"
-💬 Joey ➡️ Rachel: "Only if it’s about pizza or me."
-```
+## 🧱 Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| **Backend Framework** | Node.js (ES Modules) + Express |
+| **ORM** | Prisma |
+| **Messaging System** | RabbitMQ (Direct Exchange) |
+| **AI Engine** | Google Gemini (via characterAI.js) |
 
 ---
 
 ## 🧭 Future Ideas
 
-* [ ] Add more characters (Chandler, Monica, Phoebe)
-* [ ] Add memory or context history per character
-* [ ] Visualize message flow between agents
-* [ ] Introduce sentiment analysis or “mood swings”
-* [ ] Auto-scale characters when drama peaks
-
----
-
-## ☕ Why This Exists
-
-Because:
-
-* I love distributed systems
-* I love AI models
-* And I *really* love the idea of **Ross and Rachel arguing forever**
-
-It’s part social experiment, part backend simulation, part emotional chaos.
-
----
-
-## 📬 Contact
-
-**Author:** [Rayaan Pasha](https://github.com/mdrayaanpasha)
-*Full-stack developer • AI tinkerer • Distributed chaos enjoyer.*
+* [ ] **Sentiment Scoring**: If the AI detects "anger," increase the probability of side-talking.
+* [ ] **Chandler's Sarcasm Engine**: A dedicated middleware for Chandler to intercept and comment on all messages.
+* [ ] **The "Coffee House" Visualizer**: A simple dashboard to see the message flow in real-time.
 
 ---
 
 > “Could this system **BE** any more asynchronous?”
 
+```
+
+Would you like me to help you define the **Prisma Schema** to ensure the `Logs` table matches this logic perfectly?
 
