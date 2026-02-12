@@ -3,9 +3,12 @@ import 'dotenv/config';
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
+import cors from "cors";
+
 
 const prisma = new PrismaClient();
 const app = express(); 
+app.use(cors())
 
 const PORT = 3002; // Distinct port for Joey
 const EXCHANGE_NAME = 'friends-exchange';
