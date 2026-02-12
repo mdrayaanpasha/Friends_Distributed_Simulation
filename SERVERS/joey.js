@@ -8,7 +8,11 @@ import cors from "cors";
 
 const prisma = new PrismaClient();
 const app = express(); 
-app.use(cors())
+app.use(cors({
+  origin: "*", 
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 
 const PORT = 3002; // Distinct port for Joey
 const EXCHANGE_NAME = 'friends-exchange';

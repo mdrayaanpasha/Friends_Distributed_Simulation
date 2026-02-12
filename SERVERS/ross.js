@@ -12,7 +12,11 @@ import cors from "cors"
 
 const prisma = new PrismaClient();
 const app = express(); 
-app.use(cors())
+app.use(cors({
+  origin: "*", 
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 
 const PORT = 3001;
 const EXCHANGE_NAME = 'friends-exchange';
