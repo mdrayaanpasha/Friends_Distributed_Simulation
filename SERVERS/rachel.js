@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 const app = express(); 
 app.use(cors())
 
-const PORT = 3000;
+const PORT = 3003;
 const EXCHANGE_NAME = 'friends-exchange';
 const CHARACTER_NAME = "Rachel";
 const characters = ["Joey", "Ross"];
