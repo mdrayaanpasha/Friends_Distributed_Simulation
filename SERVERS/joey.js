@@ -4,7 +4,7 @@ import express from "express";
 import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
 import cors from "cors";
-
+import cleanupOldLogs from "./dbcleanup.js";
 const prisma = new PrismaClient();
 const app = express(); 
 
@@ -93,6 +93,7 @@ async function connect() {
 // Start a new conversation via HTTP
 app.get("/start-convo-bro", async (req, res) => {
     try {
+         await cleanupOldLogs();
         const char = characters[Math.floor(Math.random() * characters.length)];
         const conversationId = crypto.randomUUID();
 

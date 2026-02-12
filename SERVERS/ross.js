@@ -3,6 +3,7 @@ import 'dotenv/config';
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
+import cleanupOldLogs from "./dbcleanup.js";
 import cors from "cors";
 
 const prisma = new PrismaClient();
@@ -102,6 +103,7 @@ async function connect() {
 
 app.get("/start-convo-bro", async (req, res) => {
     try {
+        await cleanupOldLogs();
         const char = characters[Math.floor(Math.random() * characters.length)];
         const conversationId = crypto.randomUUID();
         const message = { 
