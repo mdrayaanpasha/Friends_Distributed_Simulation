@@ -5,9 +5,9 @@ import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
 import cors from "cors";
 
-
 const prisma = new PrismaClient();
 const app = express(); 
+
 app.use(cors({
   origin: "*", 
   methods: ["GET", "POST", "OPTIONS"],
@@ -20,11 +20,8 @@ const CHARACTER_NAME = "Rachel";
 const characters = ["Joey", "Ross"];
 let channel;    
 
-// --- AI ALTERNATIVE: FIXED RESPONSES ---
-// This replaces the talkToCharacter AI function for now.
-// import talkToCharacter from "./characterAI.js"
-
-async function getFixedResponse(charName, recipient, userMessage) {
+// --- FIXED RESPONSES ---
+async function getFixedResponse() {
     const responses = [
         "Oh, that's interesting! Tell me more.",
         "I was just thinking the same thing.",
@@ -32,21 +29,10 @@ async function getFixedResponse(charName, recipient, userMessage) {
         "I'm not sure, what do you think?",
         "That is SO typical of you!"
     ];
-    
-    // Pick a random response to simulate "thinking"
     const randomIndex = Math.floor(Math.random() * responses.length);
-    
-    // Simulate a small delay for realism
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    await new Promise(resolve => setTimeout(resolve, 1000)); 
     return responses[randomIndex];
 }
-
-/* ACTIVATE AI VERSION:
-  1. Uncomment the 'talkToCharacter' import at the top.
-  2. Replace 'getFixedResponse' calls with 'talkToCharacter'.
-  3. Ensure your API keys are set in your .env file.
-*/
 
 async function connect() {
     try {
@@ -58,67 +44,57 @@ async function connect() {
         await channel.bindQueue(Q.queue, EXCHANGE_NAME, CHARACTER_NAME);
 
         console.log(`[*] ${CHARACTER_NAME} is ready...`);
-        await channel.purgeQueue(`q-${CHARACTER_NAME}`);
 
         channel.consume(Q.queue, async(msg) => {
             if(!msg) return;
 
-            const { conversationId, from, to, message } = JSON.parse(msg.content.toString());
+            // 1. Extract the step counter from the message
+            const { conversationId, from, to, message, step = 0 } = JSON.parse(msg.content.toString());
 
-            if (!conversationId || to !== CHARACTER_NAME || from === CHARACTER_NAME) {
+            // 2. The Stop Condition: Check if we've hit the limit
+            if (step >= 10) {
+                console.log(`[!] Max steps reached. ${CHARACTER_NAME} is hanging up.`);
                 channel.ack(msg);
                 return;
             }
 
+            if (to !== CHARACTER_NAME || from === CHARACTER_NAME) {
+                channel.ack(msg);
+                return;
+            }
+
+            // Log to DB
             await prisma.logs.create({
                 data: { conversationId, characterFrom: from, characterTo: to, message },
             });
 
-            console.log(`[*] ${CHARACTER_NAME} received: "${message}" from ${from}`);
+            console.log(`[*] ${CHARACTER_NAME} (Step ${step}) received from ${from}: ${message}`);
 
-            let context = await prisma.logs.findMany({
-                where: {
-                    conversationId,
-                    OR: [{ characterFrom: CHARACTER_NAME }, { characterTo: CHARACTER_NAME }],
-                },
-                orderBy: { createdAt: "asc" },
-                take: 5,
-            });
-
-            // Prevent infinite loops
-            if (context.length >= 10) {
-                console.log(`[*] ${CHARACTER_NAME} stopping conversation ${conversationId}`);
-                channel.ack(msg);
-                return;
-            }
-
-            // --- AI SWITCH POINT ---
-            // Swap 'getFixedResponse' with your AI function here later
-            const responseMessage = await getFixedResponse(CHARACTER_NAME, from, message);
+            // 3. Prepare the reply with an incremented step
+            const responseMessage = await getFixedResponse();
 
             const reply = {
                 conversationId, 
                 from: CHARACTER_NAME,
                 to: from,
                 message: responseMessage,
+                step: step + 1 // INCREMENT STEP
             };
 
             channel.publish(EXCHANGE_NAME, from, Buffer.from(JSON.stringify(reply)), { persistent: true });
 
-            // 10% chance to ping another character
-            if (Math.random() < 0.1 && context.length < 4) {
+            // Side-talk logic (also respects step limit)
+            if (Math.random() < 0.1 && step < 4) {
                 const otherChar = characters.find((c) => c !== from);
                 if (otherChar) {
-                    const sideMsg = await getFixedResponse(CHARACTER_NAME, otherChar, "Side talk");
-                    
+                    const sideMsg = await getFixedResponse();
                     channel.publish(EXCHANGE_NAME, otherChar, Buffer.from(JSON.stringify({
                         conversationId,
                         from: CHARACTER_NAME,
                         to: otherChar,
-                        message: sideMsg,
+                        message: `(Side talk) ${sideMsg}`,
+                        step: step + 1 
                     })), { persistent: true });
-
-                    console.log(`[*] ${CHARACTER_NAME} side-talked to ${otherChar}`);
                 }
             }
 
@@ -140,6 +116,7 @@ app.get("/start-convo-bro", async (req, res) => {
             from: CHARACTER_NAME,
             to: char,
             message: "Hey! How you doin'?",
+            step: 1 // INITIALIZE STEP
         };
 
         channel.publish(EXCHANGE_NAME, char, Buffer.from(JSON.stringify(message)), { persistent: true });
@@ -149,7 +126,7 @@ app.get("/start-convo-bro", async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`[*] ${CHARACTER_NAME} running on port ${PORT}`);
     connect();
 });

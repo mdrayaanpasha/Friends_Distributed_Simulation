@@ -3,15 +3,11 @@ import 'dotenv/config';
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
-import cors from "cors"
-
-
-// --- AI CONFIG ---
-// import { talkToCharacter } from "./characterAI.js"; 
-// To use AI: Uncomment above and swap getRossResponse() with talkToCharacter() below.
+import cors from "cors";
 
 const prisma = new PrismaClient();
 const app = express(); 
+
 app.use(cors({
   origin: "*", 
   methods: ["GET", "POST", "OPTIONS"],
@@ -25,7 +21,7 @@ const characters = ["Rachel", "Joey"];
 let channel;    
 
 // --- FIXED RESPONSES ---
-async function getRossResponse(from) {
+async function getRossResponse() {
     const lines = [
         "We were on a break!",
         "Pivot! PIVOT!",
@@ -33,6 +29,7 @@ async function getRossResponse(from) {
         "Unagi is a state of total awareness.",
         "I'm the Holiday Armadillo!"
     ];
+    await new Promise(resolve => setTimeout(resolve, 1000)); 
     return lines[Math.floor(Math.random() * lines.length)];
 }
 
@@ -45,14 +42,21 @@ async function connect() {
         await channel.bindQueue(Q.queue, EXCHANGE_NAME, CHARACTER_NAME);
 
         console.log(`[*] ${CHARACTER_NAME} is ready...`);
-        await channel.purgeQueue(`q-${CHARACTER_NAME}`);
 
         channel.consume(Q.queue, async(msg) => {
             if(!msg) return;
 
-            const { conversationId, from, to, message } = JSON.parse(msg.content.toString());
+            // 1. Extract step from the message
+            const { conversationId, from, to, message, step = 0 } = JSON.parse(msg.content.toString());
 
-            if (!conversationId || to !== CHARACTER_NAME || from === CHARACTER_NAME) {
+            // 2. Global Stop Condition
+            if (step >= 10) {
+                console.log(`[!] Max steps reached. ${CHARACTER_NAME} is hanging up.`);
+                channel.ack(msg);
+                return;
+            }
+
+            if (to !== CHARACTER_NAME || from === CHARACTER_NAME) {
                 channel.ack(msg);
                 return;
             }
@@ -61,42 +65,31 @@ async function connect() {
                 data: { conversationId, characterFrom: from, characterTo: to, message },
             });
 
-            console.log(`[*] ${CHARACTER_NAME} received from ${from}: ${message}`);
+            console.log(`[*] ${CHARACTER_NAME} (Step ${step}) received from ${from}: ${message}`);
 
-            let context = await prisma.logs.findMany({
-                where: {
-                    conversationId,
-                    OR: [{ characterFrom: CHARACTER_NAME }, { characterTo: CHARACTER_NAME }],
-                },
-                orderBy: { createdAt: "asc" },
-                take: 5,
-            });
-
-            if (context.length >= 10) {
-                console.log(`[*] ${CHARACTER_NAME} stopping loop for ${conversationId}`);
-                channel.ack(msg);
-                return;
-            }
-
-            // USE FIXED RESPONSE INSTEAD OF AI
-            const rossReply = await getRossResponse(from);
+            // 3. Increment step for the reply
+            const rossReply = await getRossResponse();
 
             const reply = {
                 conversationId, 
                 from: CHARACTER_NAME,
                 to: from,
                 message: rossReply,
+                step: step + 1 // INCREMENT STEP
             };
 
             channel.publish(EXCHANGE_NAME, from, Buffer.from(JSON.stringify(reply)), { persistent: true });
 
-            // 10% side-talk chance
-            if (Math.random() < 0.1 && context.length < 4) {
+            // Side-talk chance
+            if (Math.random() < 0.1 && step < 4) {
                 const otherChar = characters.find((c) => c !== from);
                 if (otherChar) {
-                    const sideLine = `I was just talking to ${from}. Do you know about Unagi?`;
                     channel.publish(EXCHANGE_NAME, otherChar, Buffer.from(JSON.stringify({
-                        conversationId, from: CHARACTER_NAME, to: otherChar, message: sideLine,
+                        conversationId, 
+                        from: CHARACTER_NAME, 
+                        to: otherChar, 
+                        message: `(Side talk) I was just talking to ${from}. Do you know about Unagi?`,
+                        step: step + 1
                     })), { persistent: true });
                 }
             }
@@ -111,7 +104,13 @@ app.get("/start-convo-bro", async (req, res) => {
     try {
         const char = characters[Math.floor(Math.random() * characters.length)];
         const conversationId = crypto.randomUUID();
-        const message = { conversationId, from: CHARACTER_NAME, to: char, message: "Hi... 👋" };
+        const message = { 
+            conversationId, 
+            from: CHARACTER_NAME, 
+            to: char, 
+            message: "Hi... 👋",
+            step: 1 // INITIALIZE STEP
+        };
 
         channel.publish(EXCHANGE_NAME, char, Buffer.from(JSON.stringify(message)), { persistent: true });
         res.send({ status: "Ross started it.", conversationId, with: char });
@@ -122,26 +121,18 @@ app.get("/start-convo-bro", async (req, res) => {
 
 // GET /api/sync
 app.get('/api/sync', async (req, res) => {
-  const fiveSecondsAgo = new Date(Date.now() - 5000);
-
   try {
     const freshLogs = await prisma.logs.findMany({
-      where: {
-        createdAt: {
-          gte: fiveSecondsAgo,
-        },
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
+      orderBy: { createdAt: 'desc' },
+      take: 20
     });
     res.json(freshLogs);
   } catch (error) {
-    res.status(500).json({ error: "Database is being a 'Ross' right now." });
+    res.status(500).json({ error: "Database error." });
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`[*] Ross running on port ${PORT}`);
     connect();
 });
