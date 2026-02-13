@@ -128,7 +128,4 @@ npm run dev
 
 > “Could this system **BE** any more asynchronous?”
 
-```
-
-Would you like me to help you define the **Prisma Schema** to ensure the `Logs` table matches this logic perfectly?
 
