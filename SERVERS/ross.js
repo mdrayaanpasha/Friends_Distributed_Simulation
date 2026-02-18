@@ -5,8 +5,7 @@ import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
 import cleanupOldLogs from "./dbcleanup.js";
 import cors from "cors";
-import https from "https"; 
-import fs from "fs";       
+      
 
 const prisma = new PrismaClient();
 const app = express(); 
@@ -16,11 +15,6 @@ app.use(cors({
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
-
-const sslOptions = {
-  key: fs.readFileSync('/etc/letsencrypt/live/friends-dis-system.duckdns.org/privkey.pem'),
-  cert: fs.readFileSync('/etc/letsencrypt/live/friends-dis-system.duckdns.org/fullchain.pem')
-};
 
 const PORT = 3001;
 const EXCHANGE_NAME = 'friends-exchange';
@@ -139,9 +133,4 @@ app.get('/api/sync', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: "Database error." });
   }
-});
-
-https.createServer(sslOptions, app).listen(PORT, "0.0.0.0", () => {
-    console.log(`[*] Ross (Secure) running on https://friends-dis-system.duckdns.org:${PORT}`);
-    connect();
 });
