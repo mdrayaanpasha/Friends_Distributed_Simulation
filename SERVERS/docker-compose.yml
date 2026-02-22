@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ross:
+    build: .
+    command: node ross.js
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - DATABASE_URL=${DATABASE_URL} # Pulls from .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  rachel:
+    build: .
+    command: node rachel.js
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - DATABASE_URL=${DATABASE_URL}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  joey:
+    build: .
+    command: node joey.js
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+      - DATABASE_URL=${DATABASE_URL}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
