@@ -134,3 +134,9 @@ app.get('/api/sync', async (req, res) => {
     res.status(500).json({ error: "Database error." });
   }
 });
+
+
+app.listen(PORT, () => {
+    console.log(`Server for ${CHARACTER_NAME} running on port ${PORT}`);
+    connect();
+});

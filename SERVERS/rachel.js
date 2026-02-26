@@ -132,3 +132,8 @@ app.get("/start-convo-bro", async (req, res) => {
     }
 });
 
+
+app.listen(PORT, () => {
+    console.log(`Server for ${CHARACTER_NAME} running on port ${PORT}`);
+    connect();
+});
